@@ -1,50 +1,52 @@
 import os
 import requests
+import threading
 from io import BytesIO
-from PIL import Image,ImageOps
-
-def download_tile(url,xl,yl):
-    image = requests.get(url)
-    img = Image.open(BytesIO(image.content))
-    folder_path = f"image/line{yl}"
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-    tile_path = f"{folder_path}/{yl}-{xl}.png"
-    img.save(tile_path)
-
-def get_chunk_url(x, z, zoomout):
-    scaling_factor = 1
-    center_x = 0
-    center_z = -17
-    tile_size = 32
-    scaled_x = int((x - center_x) * scaling_factor + (tile_size / 2))
-    scaled_y = int(-(z - center_z) * scaling_factor + (tile_size / 2))
+from PIL import Image
 
 
-    divided_x = scaled_x >> 5
-    divided_y = scaled_y >> 5
-    shifted_x = round(scaled_x / 1024)
-    shifted_y  = round(scaled_y / 1024)
-    zoom_prefix = 'z' * zoomout
-    url = f'http://shenanigans-group.com:8090/tiles/ShenanigansEM_S8v2/flat/{shifted_x}_{shifted_y}/{zoom_prefix}{divided_x}_{divided_y}.png'
-    return url
+class downloading:
+    def download_tile(self,xl, yl):
+        zoom_out = 0
+        scaling_factor = 1
+        center_x = 0
+        center_z = -17
+        tile_size = 32
+        scaled_x = int((xl - center_x) * scaling_factor + (tile_size / 2))
+        scaled_y = int(-(yl - center_z) * scaling_factor + (tile_size / 2))
+
+        divided_x = scaled_x >> 5
+        divided_y = scaled_y >> 5
+        shifted_x = round(scaled_x / 1024)
+        shifted_y = round(scaled_y / 1024)
+        zoom_prefix = 'z' * zoom_out
+        url = f'http://shenanigans-group.com:8090/tiles/ShenanigansEM_S8v2/flat/{shifted_x}_{shifted_y}/{zoom_prefix}{divided_x}_{divided_y}.png'
+        
+        image = requests.get(url)
+        img = Image.open(BytesIO(image.content))
+        folder_path = f"image/line{yl}"
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+        tile_path = f"{folder_path}/{yl}-{xl}.png"
+        img.save(tile_path)
+    
+    def __init__(self, xl, yl):
+        t = threading.Thread(target=self.download_tile(xl, yl))
+        t.start()
+
 x1 = 2998.66
 z1 = -10409
 x2 = 4355
 z2 = -9429
 rangex = int(abs((x1-x2)/32))
-rangez = int(abs((z1-z2)/32))
+rangey = int(abs((z1-z2)/32))
 
-zoom_out = 0
+
 done = 0
-line_images = []
-
-rangey = 200
 todo = rangex * rangey
 for yl in range(rangey):
     for xl in range(rangex):
-        url = get_chunk_url(x1+(32*xl), z1+(32*yl), zoom_out)
-        download_tile(url, xl, yl)
+        downloading(xl,yl)
         done += 1
         print(f"{done} out of {todo}")
     images = [Image.open(f'image/line{yl}/{yl}-{xl}.png') for xl in range(rangex)]
